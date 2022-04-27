@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.http import HttpResponse
 from django.shortcuts import render
 from django import forms
 import openpyxl
@@ -11,15 +12,12 @@ class ExcelUploadForm(forms.Form):
     file = forms.FileField()
 
 
-def welcome(request):
-    context = {
-        'app_name': request.resolver_match.app_name
-    }
-    return render(request, 'airpollution/welcome.html', context)
-
-
-def upload_file(request):
-    if request.method == 'POST':
+def airpollution(request):
+    if request.method == 'GET':
+        context = {
+            'app_name': request.resolver_match.app_name,
+        }
+    elif request.method == 'POST':
         form = ExcelUploadForm(request.POST, request.FILES)
         if form.is_valid():
             year = form.cleaned_data['year']
@@ -29,7 +27,7 @@ def upload_file(request):
             for tab_name in tab_names:
                 ws = wb[tab_name]
                 # ws = wb.get_sheet_by_name(tab_name)
-                pollutant_name = tab_name.split('_')[0]
+                pollutant_name = tab_name.split('_')[0].strip()
                 pollutant = Pollutant.objects.get_or_create(name=pollutant_name)
                 headers_row, headers, units = get_headers_and_units(ws)
 
@@ -75,13 +73,8 @@ def upload_file(request):
             'app_name': request.resolver_match.app_name,
             'message_success': 'File upload successfully'
         }
-
     else:  # request method not POST
-
-        context = {
-            'app_name': request.resolver_match.app_name,
-            'message_success': 'This view accept only POST method'
-        }
+        return HttpResponse("This view needs GET or POST")
     return render(request, 'airpollution/welcome.html', context)
 
 
