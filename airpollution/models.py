@@ -15,6 +15,7 @@ class Pollutant(models.Model):
 
 class Country(models.Model):
     """ Country model for airpollution app"""
+    iso_code = models.CharField(max_length=2, primary_key=True)
     name = models.CharField(max_length=100, unique=True)
     removed = models.BooleanField(default=False)
     longitude = models.FloatField(null=True)
@@ -36,7 +37,7 @@ class PollutantEntry(models.Model):
     city = models.CharField(max_length=50, default='', blank=True)
     station_code = models.CharField(max_length=20, default='', blank=True)
     station_name = models.CharField(max_length=100, default='', blank=True)
-    pollution_level = models.ImageField()
+    pollution_level = models.FloatField()
     units = models.CharField(max_length=10, default='', blank=True)
     station_type = models.CharField(max_length=20, default='', blank=True)
     station_area = models.CharField(max_length=20, default='', blank=True)
