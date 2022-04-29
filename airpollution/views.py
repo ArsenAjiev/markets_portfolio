@@ -1,3 +1,4 @@
+from django.db.models import Sum, Q, Count
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -5,6 +6,8 @@ from django import forms
 import openpyxl
 from airpollution.models import Pollutant, Country, PollutantEntry
 from airpollution.helpers import get_headers_and_units, XLHEADERS
+import colorsys
+import json
 
 
 class ExcelUploadForm(forms.Form):
@@ -14,9 +17,55 @@ class ExcelUploadForm(forms.Form):
 
 def airpollution(request):
     if request.method == 'GET':
+        table_data = {}
+        visuals_data = {}
+        pollutant_list = [pollutant.name for pollutant in Pollutant.objects.all()]
+        country_list = [country.iso_code for country in Country.objects.all()]
+        # print(pollutant_list)
+        # print(country_list)
+
+        for pollutant in pollutant_list:
+            table_data[pollutant] = {}
+            visuals_data[pollutant] = {'labels': [], 'data': []}
+            for country in country_list:
+                total = PollutantEntry.objects.aggregate(
+                    total=Sum('pollution_level', filter=Q(pollutant__name=pollutant, country__iso_code=country))
+                )
+                total = total['total']
+                count = PollutantEntry.objects.filter(pollutant__name=pollutant, country__iso_code=country).count()
+                if total is not None and count:
+                    table_data[pollutant][country] = total / count
+
+                    visuals_data[pollutant]['labels'].append(country)
+                    visuals_data[pollutant]['data'].append(total/count)
+
+        # post process visual data
+        for pollutant_data in visuals_data.values():
+            data_count = len(pollutant_data['labels'])
+            HSV_tuples = [(i * 1.0 / data_count, 0.5, 0.5) for i in range(data_count)]
+            RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
+            background_colors = []
+            border_colors = []
+            for rgb in RGB_tuples:
+                red, green, blue = int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255)
+                background_colors.append(f'rgba({red}, {green}, {blue}, 0.2)')
+                border_colors.append(f'rgba({red}, {green}, {blue}, 1)')
+
+
+            # background_color = [f'rgba({int(rgb[0]*255)}, {int(rgb[0]*255)}, {int(rgb[0]*255)}, 0.2)' for rgb in RGB_tuples]
+            pollutant_data['labels'] = json.dumps(pollutant_data['labels'])
+            pollutant_data['data'] = json.dumps(pollutant_data['data'])
+            pollutant_data['background'] = json.dumps(background_colors)
+            pollutant_data['border'] = json.dumps(border_colors)
+
+
+
         context = {
             'app_name': request.resolver_match.app_name,
+            'data': table_data,
+            'visuals_data': visuals_data
         }
+
     elif request.method == 'POST':
         form = ExcelUploadForm(request.POST, request.FILES)
         if form.is_valid():
