@@ -229,10 +229,6 @@ def temp_country_creator(request):
     else:
         Country.objects.bulk_create(to_insert)
 
-    context = {
-        'app_name': request.resolver_match.app_name,
-        'message_success': 'Country created'
-    }
     return redirect('airpollution:airpollution')
 
 
